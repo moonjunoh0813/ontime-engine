@@ -66,13 +66,13 @@ WaitProvider = Callable[[str, str, str], int]
 # Day2: fixed route (draft)
 FIXED_ROUTE_SEGMENTS: list[Move | Board] = [
     Move(0),  # 집 -> 이마트앞 정류장 (도보)
-    Board(stop="이마트앞", route="51"),
+    Board(stop="206000043", route="51"), 
     Move(0),  # 51번 버스 탑승 후 미금역 정류장 도착
     Move(0),  # 미금역 정류장 -> 미금역 (도보)
-    Board(stop="미금역", route="수인분당선"),
+    Board(stop="미금", route="수인분당선"),
     Move(0),  # 수인분당선 탑승 후 청명역 도착
     Move(0),  # 청명역 -> 청명역 정류장 (도보)
-    Board(stop="청명역 정류장", route="5100"),
+    Board(stop="203000075", route="5100"), 
     Move(0),  # 5100번 버스 탑승 후 경희대 정문 도착
     Move(0),  # 경희대 정문 -> 학교 (도보)
 ]

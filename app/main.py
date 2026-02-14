@@ -1,16 +1,21 @@
+from datetime import datetime
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from app.services.decision_engine import (
-    compute_departure_time,
     FIXED_ROUTE_SEGMENTS,
+    compute_departure_time,
     parse_hhmm,
 )
+
+from app.adapters.gbis_bus_eta_provider import GbisBusEtaProvider
+from app.adapters.suin_bundang_position_eta_provider import SuinBundangPositionEtaProvider
+from app.adapters.wait_provider_snapshot import build_wait_provider_snapshot
 
 app = FastAPI(title="Ontime Engine API")
 
 
-# Step1) 입력/출력 스키마(계약)
 class ComputeRequest(BaseModel):
     destination_time: str  # "HH:MM"
 
@@ -19,16 +24,37 @@ class ComputeResponse(BaseModel):
     recommended_departure_time: str  # "HH:MM"
 
 
-# Step3) Day3용 임시 wait_provider (실시간 ETA 붙이기 전)
 def dummy_wait_provider(stop: str, route: str, time_hhmm: str) -> int:
-    # Day3: 아직 실시간 API가 없으므로 route별 max_wait로 대기시간을 가정한다.
-    # (안전 출발시간 쪽으로 보수적으로 계산됨)
-    max_wait = {
-        "51": 15,
-        "5100": 25,
-        "수인분당선": 6,  # 임시값(나중에 실제 지하철 API/정책으로 교체)
-    }
+    max_wait = {"51": 15, "5100": 25, "수인분당선": 10}
     return max_wait.get(route, 0)
+
+
+def build_wait_provider():
+    """
+    실시간 스냅샷 wait_provider를 만들고, 실패하면 더미로 fallback.
+    """
+    try:
+        bus_provider = GbisBusEtaProvider()
+        subway_provider = SuinBundangPositionEtaProvider(toward_station="청명")
+
+        bus_stops = [
+            ("206000043", "51"),      # 성남 이마트앞
+            ("203000075", "5100"),    # 청명역 4번출구
+        ]
+        subway_stops = [
+            ("미금", "수인분당선"),
+        ]
+
+        return build_wait_provider_snapshot(
+            now=datetime.now(),
+            bus_provider=bus_provider,
+            subway_provider=subway_provider,
+            bus_stops=bus_stops,
+            subway_stops=subway_stops,
+            max_wait_by_route={"51": 15, "5100": 25, "수인분당선": 10},
+        )
+    except Exception:
+        return dummy_wait_provider
 
 
 @app.get("/health")
@@ -36,10 +62,9 @@ def health():
     return {"status": "ok"}
 
 
-# Step2) 엔드포인트 생성 + Step4) 에러 처리
 @app.post("/compute", response_model=ComputeResponse)
 def compute(req: ComputeRequest) -> ComputeResponse:
-    # 입력 시간 포맷 검증(HH:MM)
+    # 입력 포맷 검증
     try:
         parse_hhmm(req.destination_time)
     except Exception:
@@ -48,16 +73,15 @@ def compute(req: ComputeRequest) -> ComputeResponse:
             detail="destination_time must be in HH:MM format (e.g., '10:00')",
         )
 
-    # 엔진 호출
+    wait_provider = build_wait_provider()
+
     try:
         departure = compute_departure_time(
             destination_time=req.destination_time,
             segments=FIXED_ROUTE_SEGMENTS,
-            wait_provider=dummy_wait_provider,
+            wait_provider=wait_provider,
         )
     except ValueError as e:
-        # 엔진이 '불가능/데이터 문제'라고 판단한 케이스
         raise HTTPException(status_code=400, detail=str(e))
 
     return ComputeResponse(recommended_departure_time=departure)
-
