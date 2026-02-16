@@ -1,21 +1,21 @@
-# Day8 Report (Recompute from Log)
+# Day8 보고서 (로그 기반 재계산)
 
-## What we did
-- Recomputed recommended departure times using stored ETA snapshots (offline simulation).
-- Goal: measure stability without re-collecting data, enabling policy iteration.
+## 오늘 한 일
+- 수집된 ETA 스냅샷 CSV를 기반으로, 엔진을 오프라인에서 다시 돌려(recompute) 권장 출발시각을 재계산함
+- 목적: 재수집 없이도 정책/로직 변경 시 동일 데이터로 안정성을 반복 평가 가능하게 만들기
 
-## AM (fixed destination-time style)
-- Departure range span: 29 min
-- Departure jump max: 29 min
-- Departure jumps >= 5 min: 10
-- Verdict: high volatility under fixed destination time.
+## 오전(고정 목표 도착시간 성격) — 변동성 지속 (위험)
+- 출발시각 span: 29분
+- 출발시각 단일 점프 최대: 29분
+- 출발시각 점프 >= 5분: 10회
+- 판정: 고정 목표 도착시간 시나리오에서는 “홈 화면 1개 출발시각”이 크게 출렁일 수 있음
 
-## Noon (destination = now + 90 min)
-- Departure span is large because destination moves forward each minute (not a stability metric).
-- Slack (departure - now): min=31, max=31, avg=31 (constant across 60 samples)
-- Verdict: very stable under relative destination time; always “now < recommended departure”.
+## 낮(목표=지금+90분) — 슬랙 완전 안정 (양호)
+- 출발시각 span은 목표시간이 매 분 이동하므로 안정성 지표로 부적절
+- 슬랙(slack = 출발시각 - 현재시각): min=31, max=31, avg=31 (60개 전부 동일)
+- 판정: “지금 < 권장 출발” 조건이 항상 만족되고, 여유가 매우 안정적
 
-## Conclusion
-- Relative-destination mode is stable.
-- Fixed-destination mode remains risky without additional policy/model changes.
-- Next: Day9 decision should consider pivoting UX/policy or improving ETA modeling (multi-vehicle, segment learning, smoothing).
+## 결론
+- 상대 목표(지금+N분) 모드는 안정성이 매우 좋음
+- 고정 목표 도착시간 모드는 현재 정책/모델로는 리스크가 크며 추가 정책/UX/모델 개선이 필요
+- Day9 결론에서 Pivot(정책/UX 변경 또는 모델 개선)을 전제로 판단해야 함

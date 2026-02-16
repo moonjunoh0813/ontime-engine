@@ -1,21 +1,21 @@
-# Day7 Report (AM + Noon)
+# Day7 보고서 (오전 + 낮)
 
-## Summary
-- Collection stability: OK (0 errors, 0 missing in all runs)
-- Risk: recommended departure time fluctuates heavily under fixed destination-time AM scenario.
-- Under dynamic destination (now+90min), departure changes are smooth (max jump 2min).
+## 요약
+- 수집/연동 안정성: 양호 (모든 실행에서 errors 0, missing 0)
+- 리스크: 오전(고정 목표 도착시간에 가까운 상황)에서 권장 출발시각 변동이 매우 큼
+- 낮(목표=지금+90분)에서는 권장 출발시각 점프가 작아 비교적 부드럽게 움직임 (최대 점프 2분)
 
-## AM Run (07:40-08:41)
+## 오전 실행 (07:40-08:41)
 - Rows: 60, errors: 0/60
-- Departure range: 07:11 ~ 07:40 (span 29 min)
-- Departure jump max: 25 min
-- Departure jumps >= 5 min: 6
+- 출발시각 범위: 07:11 ~ 07:40 (span 29분)
+- 출발시각 단일 점프 최대: 25분
+- 출발시각 점프 >= 5분: 6회
 
-## Noon Run (12:00-13:01) with destination=now+90min
+## 낮 실행 (12:00-13:01, 목표=지금+90분)
 - Rows: 60, errors: 0/60
-- Departure jump max: 2 min
-- Departure jumps >= 5 min: 0
-- Note: departure range is large because destination-time moves forward each minute.
+- 출발시각 단일 점프 최대: 2분
+- 출발시각 점프 >= 5분: 0회
+- 참고: 이 케이스는 목표 도착시간이 매 분 앞으로 이동하므로 출발시각 절대 span은 안정성 지표로 부적절함
 
-## Next
-- Day8: simulate "fixed destination" scenario with policies (buffer/smoothing/percentile) and measure departure stability.
+## 다음
+- Day8: “고정 목표 도착시간” 상황에서 정책(버퍼/스무딩/보수화 등)을 적용했을 때 출발시각 안정성(±2분 목표)을 만족할 수 있는지 시뮬레이션으로 검증
