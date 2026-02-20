@@ -1,0 +1,17 @@
+﻿{
+  "name": "Ontime",
+  "short_name": "Ontime",
+  "description": "Find the recommended departure time for your destination.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1b1a",
+  "theme_color": "#0c1b1a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

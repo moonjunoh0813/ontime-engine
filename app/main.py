@@ -1,6 +1,5 @@
-from datetime import datetime
-
-from fastapi import FastAPI, HTTPException
+﻿from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.services.decision_engine import (
@@ -9,52 +8,36 @@ from app.services.decision_engine import (
     parse_hhmm,
 )
 
-from app.adapters.gbis_bus_eta_provider import GbisBusEtaProvider
-from app.adapters.suin_bundang_position_eta_provider import SuinBundangPositionEtaProvider
-from app.adapters.wait_provider_snapshot import build_wait_provider_snapshot
-
 app = FastAPI(title="Ontime Engine API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class ComputeRequest(BaseModel):
-    destination_time: str  # "HH:MM"
+    destination_time: str
 
 
 class ComputeResponse(BaseModel):
-    recommended_departure_time: str  # "HH:MM"
+    recommended_departure_time: str
 
 
-def dummy_wait_provider(stop: str, route: str, time_hhmm: str) -> int:
-    max_wait = {"51": 15, "5100": 25, "수인분당선": 10}
-    return max_wait.get(route, 0)
+def wait_provider_stub(stop: str, route: str, time_hhmm: str) -> int:
+    # Headway-based fallback to avoid zero-wait unrealistic results.
+    headway_by_route = {
+        "subway_suin": 8,
+        "bus_5100": 12,
+        "bus_51": 10,
+    }
+    headway = headway_by_route.get(route, 8)
 
-
-def build_wait_provider():
-    """
-    실시간 스냅샷 wait_provider를 만들고, 실패하면 더미로 fallback.
-    """
-    try:
-        bus_provider = GbisBusEtaProvider()
-        subway_provider = SuinBundangPositionEtaProvider(toward_station="청명")
-
-        bus_stops = [
-            ("206000043", "51"),      # 성남 이마트앞
-            ("203000075", "5100"),    # 청명역 4번출구
-        ]
-        subway_stops = [
-            ("미금", "수인분당선"),
-        ]
-
-        return build_wait_provider_snapshot(
-            now=datetime.now(),
-            bus_provider=bus_provider,
-            subway_provider=subway_provider,
-            bus_stops=bus_stops,
-            subway_stops=subway_stops,
-            max_wait_by_route={"51": 15, "5100": 25, "수인분당선": 10},
-        )
-    except Exception:
-        return dummy_wait_provider
+    minutes = int(time_hhmm.split(":")[1])
+    return (headway - (minutes % headway)) % headway
 
 
 @app.get("/health")
@@ -64,7 +47,6 @@ def health():
 
 @app.post("/compute", response_model=ComputeResponse)
 def compute(req: ComputeRequest) -> ComputeResponse:
-    # 입력 포맷 검증
     try:
         parse_hhmm(req.destination_time)
     except Exception:
@@ -73,15 +55,13 @@ def compute(req: ComputeRequest) -> ComputeResponse:
             detail="destination_time must be in HH:MM format (e.g., '10:00')",
         )
 
-    wait_provider = build_wait_provider()
-
     try:
         departure = compute_departure_time(
             destination_time=req.destination_time,
             segments=FIXED_ROUTE_SEGMENTS,
-            wait_provider=wait_provider,
+            wait_provider=wait_provider_stub,
         )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
 
     return ComputeResponse(recommended_departure_time=departure)
